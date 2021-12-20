@@ -1,32 +1,43 @@
-const cTable = require('console.table');
 const inquirer = require('inquirer');
+const cTable = require('console.table');
 const mysql = require('mysql2')
-const db = require('./db/connection');
+//const db = require('./db/connection');
 
 const PORT = process.env.PORT || 3001;
+
+// Creates connection to MySQL database
+const db = mysql.createConnection({
+        host: 'localhost',
+        user: 'root',
+        password: 'p',
+        database: 'company'
+    },
+    console.log('Connected to the company database.')
+);
 
 // db.connect(err => {
 //     if (err) throw err;
 //     console.log('Database connected.');
 // });
 
-
-
+// Function to return a list of current department names
 function getDepartments() {
-    let depts = [];
-    const sql = `SELECT department_name FROM department`;
-    db.query(sql, (err, rows) => {
+    // let depts = [];
+    const sql = `SELECT department_name FROM departments`;
+    let depts = db.query(sql, (err, rows) => {
         if (err) throw err;
-        depts = rows.map(each => each.department_name);
+        //console.log(rows);
     })
-    return depts;
+    //console.log(depts);
+    // depts = rows.map(each => each.department_name);
+    // return depts;
 }
 
 
 
 // Function to Show All Departments
 function viewDepartments() {
-    const sql = `SELECT id, department_name FROM department`;
+    const sql = `SELECT * FROM departments`;
     db.query(sql, (err, rows) => {
         if (err) throw err;
         console.table(rows);
@@ -36,12 +47,12 @@ function viewDepartments() {
 
 
 // Function to Create and Add a new Department
-function addDepartment() {
+function addDepartments() {
     return inquirer.prompt([
         {
             type: 'input',
             name: 'department_name',
-            message: 'What is the name of the department you would like to add?',
+            message: 'What is the name of the department?',
             validate: nameInput => {
                 if (nameInput) {
                     return true;
@@ -54,7 +65,7 @@ function addDepartment() {
     ])
     .then(body => {
         const params = [body.department_name];
-        const sql = `INSERT INTO department (department_name) VALUE (?)`;
+        const sql = `INSERT INTO departments (department_name) VALUE (?)`;
         db.query(sql, params, (err, result) => {
             if (err) throw err;
             console.log(`${body.department_name} department added!`);
@@ -64,18 +75,17 @@ function addDepartment() {
 }
 
 // Function to Generate a list of all current Positions
-function getPositions() {
-    const sql = `SELECT title FROM position`;
+function getRoles() {
+    const sql = `SELECT title FROM roles`;
     db.query(sql, (err, rows) => {
         if (err) throw err;
         return rows;
     })
 }
 
-function viewPositions() {
-    const sql = `SELECT position.*, department.department_name 
-                FROM position
-                JOIN department ON position.department_id = department.id`;
+// Function to display Roles
+function viewRoles() {
+    const sql = `SELECT * FROM roles`;
     db.query(sql, (err, rows) => {
         if (err) throw err;
         console.table(rows);
@@ -83,7 +93,8 @@ function viewPositions() {
     })
 };
 
-function addPosition() {
+// Function to add a new Role to the database
+function addRoles() {
     return inquirer.prompt([
         {
             type: 'input',
@@ -113,29 +124,25 @@ function addPosition() {
         },
         {
             type: 'list',
-            name: 'department',
+            name: 'department_id',
             message: 'What department does the new position belong to?',
-            choices: ['Finance', 'Engineering', 'Service', 'Manufacturing', 'Sales']
+            choices: ['1', '2', '3', '4', '5', '6']
         }
     ])
     .then(body => {
-        const departmentId = `SELECT id FROM department WHERE department_name = '${body.department}'`;
-        db.query(departmentId, (err, row) => {
+        const sql = 'INSERT INTO roles (title, salary, department_id) VALUES (?,?,?)';
+        const params = [body.title, body.salary, body.department_id];
+        db.query(sql, params, (err, results) => {
             if (err) throw err;
-            console.log(row[0].id);
-            const sql = 'INSERT INTO position (title, salary, department_id) VALUES (?,?,?)';
-            const params = [body.title, body.salary, row[0].id];
-            db.query(sql, params, (err, results) => {
-                if (err) throw err;
-                console.log(`${body.title} has been added!`);
-                init();
-            })
-        })
+            console.log(`${body.title} has been added!`);
+            init();
+        })    
     })
 }
 
+// Function to display Employees from database
 function viewEmployees() {
-    const sql = `SELECT first_name, last_name FROM employee`;
+    const sql = "SELECT * FROM employees";
     db.query(sql, (err, rows) => {
         if (err) throw err;
         console.table(rows);
@@ -143,12 +150,13 @@ function viewEmployees() {
     })
 }
 
-function addEmployee() {
+// Function to add a new employee to the database
+function addEmployees() {
     return inquirer.prompt([
         {
             type: 'input',
             name: 'first_name',
-            message: `What is the employee's first name?`,
+            message: "What is the employee's first name?",
             validate: input => {
                 if (input) {
                     return true;
@@ -161,7 +169,7 @@ function addEmployee() {
         {
             type: 'input',
             name: 'last_name',
-            message: `What is the employee's last name?`,
+            message: "What is the employee's last name?",
             validate: input => {
                 if (input) {
                     return true;
@@ -173,28 +181,47 @@ function addEmployee() {
         },
         {
             type: 'list',
-            name: 'position',
-            message: `What position does the employee have?`,
-            choices: ['Finance', 'Engineering', 'Service', 'Manufacturing', 'Sales']
+            name: 'role_id',
+            message: "What is the employee's role?",
+            choices: ['1', '2', '3', '4', '5', '6', '7']
 
         },
+        {
+            type: 'list',
+            name: 'manager_id',
+            message: "Who is the employee's manager?",
+            choices: ['1', '2', '3', '4', '5', '6']
+        }
     ])
     .then(body => {
-
+        const sql = 'INSERT INTO employees (first_name, last_name, role_id, manager_id) VALUES (?,?,?,?)';
+        const params = [body.first_name, body.last_name, body.role_id, body.manager_id];
+        db.query(sql, params, (err, results) => {
+            if (err) throw err;
+            console.log(`${body.first_name} ${body.last_name} has been added!`);
+            init();
+        })    
     })
 }
 
+// Function to update employee role
 function updateEmployeeRole() {
-    return inquirer.prompt([
-        {
-            type: 'list',
-            name: 'employee',
-            message: `Which employee's role would you like to update`,
-            choices: []
-        }
-    ])
+    console.log('Feature under construction. Sorry');
+    init();
+    // return inquirer.prompt([
+    //     {
+    //         type: 'list',
+    //         name: 'employee',
+    //         message: "Which employee's role do you want to update",
+    //         choices: []
+    //     },
+    //     {
+
+    //     }
+    // ])
 }
 
+// Function to initialized app
 // class Company {
     function init() {
         return inquirer.prompt([
@@ -220,29 +247,29 @@ function updateEmployeeRole() {
                     viewDepartments();
                     break;
                 case 'View All Roles':
-                    viewPositions();
+                    viewRoles();
                     break;
                 case 'View All Employees':
                     viewEmployees();
                     break;
                 case 'Add Department':
-                    addDepartment();
+                    addDepartments();
                     break;
                 case 'Add Role':
-                    addPosition();
+                    addRoles();
                     break;
                 case 'Add Employee':
-                    addEmployee();
+                    addEmployees();
                     break;
                 case 'Update Employee Role':
                     updateEmployeeRole();
                     break;
                 case 'Exit':
-                    console.log('Good Bye!');
+                    console.log('Press CTRL C to Exit');
                     return;
             }
         })
     }
 // }
-console.log(getDepartments());
+//console.log(getDepartments());
 init();
